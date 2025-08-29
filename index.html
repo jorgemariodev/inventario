@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventario de Equipos</title>
+    <link rel="stylesheet" href="./css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <nav class="sidebar">
+            <div class="logo">
+                <h1>📊 Inventario</h1>
+            </div>
+            <ul class="menu">
+                <li><a href="#dashboard" class="menu-item active">Dashboard</a></li>
+                <li><a href="#equipos" class="menu-item">Gestionar Equipos</a></li>
+                <li><a href="#reportes" class="menu-item">Reportes</a></li>
+                <li><a href="#auditoria" class="menu-item">Auditoría</a></li>
+                <li><a href="#" class="menu-item" id="logout-btn">Cerrar Sesión</a></li>
+            </ul>
+        </nav>
+
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu-btn" class="mobile-menu-btn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="mobile-overlay"></div>
+
+        <main class="main-content">
+            <div id="dashboard-section">
+                <div class="header">
+                    <h2>Dashboard - Resumen del Inventario</h2>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-equipos">0</div>
+                        <div class="stat-label">Total Equipos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-categorias">0</div>
+                        <div class="stat-label">Categorías</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-ubicaciones">0</div>
+                        <div class="stat-label">Ubicaciones</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Equipos por Categoría</h3>
+                    <canvas id="categoryChart" width="400" height="200"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Equipos por Ubicación</h3>
+                    <canvas id="locationChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div id="equipos-section" class="hidden">
+                <div class="header">
+                    <h2>Gestión de Equipos</h2>
+                    <div>
+                        <div class="search-container">
+                            <input type="text" id="search-input" placeholder="Buscar equipos..." class="search-input">
+                            <button class="btn btn-secondary" onclick="app.searchAssets()">🔍 Buscar</button>
+                        </div>
+                        <button class="btn btn-primary" onclick="openModal('add')">Agregar Equipo</button>
+                        <button class="btn btn-success" onclick="app.exportToExcel()">📊 Exportar Excel</button>
+                        <button class="btn btn-danger" onclick="app.exportToPDF()">📄 Exportar PDF</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table" id="equipos-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Categoría</th>
+                                <th>Marca</th>
+                                <th>Serial</th>
+                                <th>Cantidad</th>
+                                <th>Ubicación</th>
+                                <th>Estado</th>
+                                <th>Observaciones</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination-container" id="pagination-container">
+                        <!-- Pagination will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportes-section" class="hidden">
+                <div class="header">
+                    <h2>Reportes</h2>
+                </div>
+                <div class="chart-container">
+                    <h3>Resumen de Inventario</h3>
+                    <div id="report-content">
+                        <p>Funcionalidad de reportes en desarrollo...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="auditoria-section" class="hidden">
+                <div class="header">
+                    <h2>Registro de Auditoría</h2>
+                </div>
+                <div class="table-container">
+                    <table class="table" id="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Acción</th>
+                                <th>Tabla</th>
+                                <th>Registro ID</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para Agregar/Editar Equipo -->
+    <div id="equipoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h3 id="modal-title">Agregar Equipo</h3>
+            </div>
+            <form id="equipoForm">
+                <input type="hidden" id="equipo-id">
+                
+                <div class="form-group">
+                    <label for="categoria">Categoría:</label>
+                    <select class="form-control" id="categoria" required>
+                        <option value="">Seleccionar categoría</option>
+                        <option value="Computador de mesa">Computador de mesa</option>
+                        <option value="Teclado">Teclado</option>
+                        <option value="Mouse">Mouse</option>
+                        <option value="Portátil">Portátil</option>
+                        <option value="Escáner">Escáner</option>
+                        <option value="UPS">UPS</option>
+                        <option value="Switch">Switch</option>
+                        <option value="Router">Router</option>
+                        <option value="Patchcord">Patchcord</option>
+                        <option value="Cámara">Cámara</option>
+                        <option value="Rack">Rack</option>
+                        <option value="Extensión">Extensión</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="marca">Marca:</label>
+                    <input type="text" class="form-control" id="marca" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="serial">Serial:</label>
+                    <input type="text" class="form-control" id="serial" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="cantidad">Cantidad:</label>
+                    <input type="number" class="form-control" id="cantidad" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="ubicacion">Ubicación:</label>
+                    <input type="text" class="form-control" id="ubicacion" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="observaciones">Observaciones:</label>
+                    <textarea class="form-control" id="observaciones" rows="3" placeholder="Observaciones adicionales sobre el equipo"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Cambiar Estado -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeStatusModal()">&times;</span>
+                <h3>Cambiar Estado del Equipo</h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Equipo:</label>
+                    <p id="status-asset-info"></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="current-status">Estado Actual:</label>
+                    <input type="text" id="current-status" class="form-control" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="new-status">Nuevo Estado:</label>
+                    <select id="new-status" class="form-control" required>
+                        <option value="">Seleccionar nuevo estado</option>
+                        <option value="Bueno">Bueno</option>
+                        <option value="Perdido">Perdido</option>
+                        <option value="Dañado">Dañado</option>
+                        <option value="De baja">De baja</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="change-reason">Razón del cambio:</label>
+                    <textarea id="change-reason" class="form-control" rows="3" placeholder="Describa la razón del cambio de estado" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="app.saveStatusChange()">Guardar Cambio</button>
+                    <button class="btn btn-secondary" onclick="closeStatusModal()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Ver Detalles de Auditoría -->
+    <div id="auditDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeAuditDetailModal()">&times;</span>
+                <h3>Detalles de Auditoría</h3>
+            </div>
+            <div class="modal-body">
+                <div id="audit-detail-content">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Ver Historial de Activo -->
+    <div id="assetHistoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeAssetHistoryModal()">&times;</span>
+                <h3>Historial del Activo</h3>
+            </div>
+            <div class="modal-body">
+                <div id="asset-info">
+                    <!-- Asset info will be loaded here -->
+                </div>
+                <div id="asset-history-content">
+                    <!-- History content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/app.js"></script>
+</body>
+</html>
